@@ -470,6 +470,29 @@ class ProgressInsideTasks(unittest.TestCase):
 			output,
 		)
 
+	def test_a_source_that_comes_back_short_is_counted_as_it_was(self):
+		# The trends source can return fewer queries than a round asks for.
+		# 0/30 asks for ten and gets three, 9/30 then asks for seven and gets
+		# three again. The clear button goes missing after the second search of
+		# that round, which is the fifth search sent, not the twelfth.
+		tasks = self._tasks(
+			get_bing_search_bar=lambda: "search bar",
+			get_clear_bing_search_query_button=lambda: "clear",
+		)
+		readings = iter([(0, 30), (9, 30)])
+		tasks.read_search_points = lambda: next(readings)
+		tasks.wait_for_element = lambda getter, timeout=10: "search bar"
+		tasks.wait_for_then_click = failing_on(5, ElementNeverAppeared("nothing matched"))
+
+		with mock.patch.object(rewards_tasks.queries, "related_queries", lambda count: ["query"] * min(count, 3)):
+			output = self._report(tasks, "complete_required_searches")
+
+		self.assertIn("Round 1: 3 searches -> 9/30", output)
+		self.assertIn(
+			"[FAIL] Required searches: sent 5 searches, then the next element never appeared",
+			output,
+		)
+
 	def test_misc_cards_say_how_many_they_opened(self):
 		cards = ["card 1", "card 2", "card 3"]
 		tasks = self._tasks(

@@ -379,15 +379,15 @@ class RewardsTaskUtils:
 			# Assume the lower known rate so a round never overshoots by much.
 			searches = max(1, (max_pts - points_earned) // 3)
 
-			self.run_search_batch(searches, already_sent=sent)
-			sent += searches
+			batch = self.run_search_batch(searches, already_sent=sent)
+			sent += batch
 
 			previous = points_earned
 			points_earned, max_pts = self.read_search_points()
 
 			logger.info(
 				"Round %s: %s searches -> %s/%s",
-				round_number, searches, points_earned, max_pts
+				round_number, batch, points_earned, max_pts
 			)
 
 			if points_earned <= previous:
@@ -426,7 +426,12 @@ class RewardsTaskUtils:
 
 		return points_earned, max_pts
 
-	def run_search_batch(self, count: int, already_sent: int = 0):
+	def run_search_batch(self, count: int, already_sent: int = 0) -> int:
+		"""Search up to count queries and return how many actually went out.
+
+		The trends source can come back with fewer queries than asked for, so
+		the caller cannot assume count.
+		"""
 		self.driver.get("https://www.bing.com/")
 		self.tab_utils.ensure_focus()
 
@@ -434,11 +439,14 @@ class RewardsTaskUtils:
 
 		# search bar should be auto-focused
 
+		sent_here = 0
+
 		for i, query in enumerate(
 			queries.related_queries(count)
 		):
 			self.keyboard.send_keys(f"{query} -noai{Keys.ENTER}")
-			sent = already_sent + i + 1
+			sent_here = i + 1
+			sent = already_sent + sent_here
 			self.progress = f"sent {sent} {'search' if sent == 1 else 'searches'}"
 
 			time.sleep(random.uniform(5.5, 7.5))
@@ -453,6 +461,8 @@ class RewardsTaskUtils:
 
 		self.driver.get(REWARDS_HOME_URL)
 		self.tab_utils.ensure_focus()
+
+		return sent_here
 
 	def restore_main_tab(self):
 		"""Close the stray tabs, keeping the one the tasks work in.
