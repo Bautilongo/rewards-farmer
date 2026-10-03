@@ -123,10 +123,10 @@ def configure_variables(f: TextIO):
 	search_backend = one_of_with_default("Which search backend would you like to use?", ["trends", "llm"], "trends")
 
 	if search_backend == "trends":
-		f.write("SEARCH_BACKEND=trends\n")
+		f.write("QUERY_SOURCE=trends\n")
 
 	else:
-		f.write("SEARCH_BACKEND=llm\n")
+		f.write("QUERY_SOURCE=llm\n")
 
 		llm_setup_type = one_of_with_default("Which LLM setup would you like to use? (Select 'local' for custom endpoints)", ["openrouter", "local"], "openrouter")
 
