@@ -89,7 +89,7 @@ class TestAccountConfiguration(QuietOutputTestCase):
 		output = io.StringIO()
 		with mock.patch.object(init_config, "path_input", return_value=root):
 			with mock.patch("builtins.input", side_effect=["1", "default", "no"]):
-				init_config.configure_mulit_account(output)
+				init_config.configure_multi_account(output)
 
 		self.assertEqual(
 			output.getvalue(),
@@ -103,7 +103,7 @@ class TestAccountConfiguration(QuietOutputTestCase):
 		with mock.patch.object(init_config, "path_input", return_value=root):
 			with mock.patch("builtins.input", side_effect=answers):
 				with mock.patch.object(init_config, "start_driver") as start_driver:
-					init_config.configure_mulit_account(output)
+					init_config.configure_multi_account(output)
 
 		self.assertEqual(output.getvalue(), f"USER_DATA_DIR={root.resolve()}\nREWARDS_ACCOUNTS=first,second\n")
 		start_driver.assert_not_called()
@@ -113,7 +113,7 @@ class TestConfigureVariables(QuietOutputTestCase):
 	def test_trends_defaults_and_non_windows_options(self):
 		output = io.StringIO()
 		with mock.patch("builtins.input", side_effect=["", "yes", "no", "no"]):
-			with mock.patch.object(init_config, "configure_mulit_account") as configure_accounts:
+			with mock.patch.object(init_config, "configure_multi_account") as configure_accounts:
 				with mock.patch.object(init_config.sys, "platform", "linux"):
 					init_config.configure_variables(output)
 
@@ -124,11 +124,11 @@ class TestConfigureVariables(QuietOutputTestCase):
 		driver_path = Path("<mock-path>/msedgedriver.exe")
 		edge_path = Path("<mock-path>/msedge.exe")
 		output = io.StringIO()
-		path_values = [driver_path, edge_path, Path("<unset>"), Path("<unset>")]
+		path_values = [driver_path, edge_path, None, None]
 		answers = ["llm", "openrouter", "key", "", "2", "no", "yes", "yes", "DEBUG", "no"]
 		with mock.patch("builtins.input", side_effect=answers):
-			with mock.patch.object(init_config, "path_input", side_effect=path_values):
-				with mock.patch.object(init_config, "configure_mulit_account"):
+			with mock.patch.object(init_config, "default_unset_path_input", side_effect=path_values):
+				with mock.patch.object(init_config, "configure_multi_account"):
 					with mock.patch.object(init_config.sys, "platform", "win32"):
 						init_config.configure_variables(output)
 
@@ -145,8 +145,8 @@ class TestConfigureVariables(QuietOutputTestCase):
 		output = io.StringIO()
 		answers = ["llm", "local", "", "", "", "", "no", "yes", "yes", "INFO"]
 		with mock.patch("builtins.input", side_effect=answers):
-			with mock.patch.object(init_config, "path_input", return_value=Path("<unset>")):
-				with mock.patch.object(init_config, "configure_mulit_account"):
+			with mock.patch.object(init_config, "default_unset_path_input", return_value=None):
+				with mock.patch.object(init_config, "configure_multi_account"):
 					with mock.patch.object(init_config.sys, "platform", "linux"):
 						init_config.configure_variables(output)
 

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import time
 from accounts import Account, directory_name_is_valid
 from browser import start_driver
 import sys
@@ -74,7 +75,33 @@ def path_input(prompt: str, default: Path, create: Literal["dir", "file", "none"
 		else:
 			print(f"Path '{path}' does not exist. Please enter a valid path.")
 
-def configure_mulit_account(f: TextIO):
+def default_unset_path_input(prompt: str, create: Literal["dir", "file", "none"]="none") -> Path | None:
+	while True:
+		if user_input := input(f"{prompt} (default: unset): ").strip():
+			path = Path(user_input)
+		else: return None
+
+		if create == "dir":
+			try:
+				path.mkdir(parents=True, exist_ok=True)
+				return path
+			except OSError as e:
+				print(f"Invalid directory '{path}': {e}")
+				continue
+		elif create == "file":
+			try:
+				path.parent.mkdir(parents=True, exist_ok=True)
+				path.touch(exist_ok=True)
+				return path
+			except OSError as e:
+				print(f"Invalid file '{path}': {e}")
+				continue
+		elif path.exists():
+			return path
+		else:
+			print(f"Path '{path}' does not exist. Please enter a valid path.")
+
+def configure_multi_account(f: TextIO):
 	root_data_dir = path_input("Enter the root data directory for accounts", Path(__file__).parent.parent / "data-dir", create="dir")
 
 	f.write(f"USER_DATA_DIR={root_data_dir.resolve()}\n")
@@ -86,8 +113,12 @@ def configure_mulit_account(f: TextIO):
 	for i in range(1, number_of_accounts + 1):
 		print(f"\nConfiguring account {i}:")
 
-		while 1:
+		while True:
 			data_dir_name = nonempty_input("Enter an account name: ").strip()
+
+			if data_dir_name in accounts:
+				print(f"Account name '{data_dir_name}' is already used. Please choose a different name.")
+				continue
 
 			if directory_name_is_valid(data_dir_name): break
 
@@ -112,8 +143,10 @@ def configure_mulit_account(f: TextIO):
 
 			print("Close the browser window after signing in to the account. The script will wait until the browser is closed before proceeding.")
 
-			while 1:
-				try: driver.title
+			while True:
+				try:
+					driver.title
+					time.sleep(0.5)
 				except Exception: break
 
 
@@ -162,35 +195,35 @@ def configure_variables(f: TextIO):
 	custom_paths = boolean_with_default("Do you want to specify custom paths for msedgedriver.exe and msedge.exe?", False)
 
 	if custom_paths:
-		msedgedriver_path = path_input("Enter custom path to msedgedriver.exe", Path("<unset>"))
+		msedgedriver_path = default_unset_path_input("Enter custom path to msedgedriver.exe")
 
-		if msedgedriver_path.name != "<unset>":
+		if msedgedriver_path:
 			f.write(f"MSEDGEDRIVER_PATH={msedgedriver_path.resolve()}\n")
 			os.environ["MSEDGEDRIVER_PATH"] = str(msedgedriver_path.resolve()) # set within this process so we can launch the driver for sign-in during account configuration
 
-		edge_binary_path = path_input("Enter custom path to msedge.exe", Path("<unset>"))
+		edge_binary_path = default_unset_path_input("Enter custom path to msedge.exe")
 
-		if edge_binary_path.name != "<unset>":
+		if edge_binary_path:
 			f.write(f"EDGE_BINARY={edge_binary_path.resolve()}\n")
 			os.environ["EDGE_BINARY"] = str(edge_binary_path.resolve()) # set within this process so we can launch the browser for sign-in during account configuration
 
 	print()
 
-	configure_mulit_account(f)
+	configure_multi_account(f)
 
 	print()
 
 	setup_logging = boolean_with_default("Do you want to set up logging for the driver and Rewards Farmer?", False)
 
 	if setup_logging:
-		driver_log_path = path_input("Enter path for driver log file (default: unset)", Path("<unset>"), create="file")
+		driver_log_path = default_unset_path_input("Enter path for driver log file", create="file")
 
-		if driver_log_path.name != "<unset>":
+		if driver_log_path:
 			f.write(f"REWARDS_DRIVER_LOG={driver_log_path.resolve()}\n")
 
-		farmer_log_file = path_input("Enter path for Rewards Farmer log file (default: unset)", Path("<unset>"), create="file")
+		farmer_log_file = default_unset_path_input("Enter path for Rewards Farmer log file", create="file")
 
-		if farmer_log_file.name != "<unset>":
+		if farmer_log_file:
 			f.write(f"REWARDS_FARMER_LOG_FILE={farmer_log_file.resolve()}\n")
 
 		farmer_log_level = one_of_with_default("Enter the desired log level for Rewards Farmer", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], "INFO")
