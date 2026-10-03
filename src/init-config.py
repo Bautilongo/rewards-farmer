@@ -183,7 +183,7 @@ def configure_variables(f: TextIO):
 
 		llm_request_timeout_int = positive_integer_with_default("Enter the LLM request timeout in seconds", 60)
 
-	f.write(f"LLM_REQUEST_TIMEOUT_SECONDS={llm_request_timeout_int}\n")
+		f.write(f"LLM_REQUEST_TIMEOUT_SECONDS={llm_request_timeout_int}\n")
 
 	headless = boolean_with_default("Do you want to run the browser in headless mode?", False)
 

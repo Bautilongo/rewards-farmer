@@ -117,7 +117,7 @@ class TestConfigureVariables(QuietOutputTestCase):
 				with mock.patch.object(init_config.sys, "platform", "linux"):
 					init_config.configure_variables(output)
 
-		self.assertEqual(output.getvalue(), "SEARCH_BACKEND=trends\nHEADLESS=true\n")
+		self.assertEqual(output.getvalue(), "QUERY_SOURCE=trends\nREWARDS_HEADLESS=true\n")
 		configure_accounts.assert_called_once_with(output)
 
 	def test_openrouter_custom_paths_logging_and_windows_options(self):
@@ -135,7 +135,7 @@ class TestConfigureVariables(QuietOutputTestCase):
 			self.assertIn("LLM_PROVIDER=openrouter\n", output.getvalue())
 			self.assertIn("OPENROUTER_API_KEY=key\n", output.getvalue())
 			self.assertIn("OPENROUTER_MODEL=openrouter/free\n", output.getvalue())
-			self.assertIn("LLM_REQUEST_TIMEOUT=2\n", output.getvalue())
+			self.assertIn("LLM_REQUEST_TIMEOUT_SECONDS=2\n", output.getvalue())
 			self.assertIn("MSEDGEDRIVER_PATH=", output.getvalue())
 			self.assertIn("EDGE_BINARY=", output.getvalue())
 			self.assertIn("REWARDS_FARMER_LOG_LEVEL=DEBUG\n", output.getvalue())
