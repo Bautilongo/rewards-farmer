@@ -156,10 +156,10 @@ def configure_variables(f: TextIO):
 	search_backend = one_of_with_default("Which search backend would you like to use?", ["trends", "llm"], "trends")
 
 	if search_backend == "trends":
-		f.write("SEARCH_BACKEND=trends\n")
+		f.write("QUERY_SOURCE=trends\n")
 
 	else:
-		f.write("SEARCH_BACKEND=llm\n")
+		f.write("QUERY_SOURCE=llm\n")
 
 		llm_setup_type = one_of_with_default("Which LLM setup would you like to use? (Select 'local' for custom endpoints)", ["openrouter", "local"], "openrouter")
 
@@ -183,11 +183,11 @@ def configure_variables(f: TextIO):
 
 		llm_request_timeout_int = positive_integer_with_default("Enter the LLM request timeout in seconds", 60)
 
-		f.write(f"LLM_REQUEST_TIMEOUT={llm_request_timeout_int}\n")
+	f.write(f"LLM_REQUEST_TIMEOUT_SECONDS={llm_request_timeout_int}\n")
 
 	headless = boolean_with_default("Do you want to run the browser in headless mode?", False)
 
-	f.write(f"HEADLESS={str(headless).lower()}\n")
+	f.write(f"REWARDS_HEADLESS={str(headless).lower()}\n")
 
 	print()
 
