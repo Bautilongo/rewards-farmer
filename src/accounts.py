@@ -14,7 +14,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from constants import DEFAULT_DATA_DIR
+from constants import DEFAULT_ROOT_DATA_DIR
 
 ACCOUNTS_ENV_VAR = "REWARDS_ACCOUNTS"
 DATA_DIR_ENV_VAR = "USER_DATA_DIR"
@@ -43,7 +43,7 @@ class Account:
 
 	@property
 	def is_default(self) -> bool:
-		return self.user_data_dir == os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_DATA_DIR)
+		return self.user_data_dir == os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_ROOT_DATA_DIR)
 
 def directory_name_is_valid(name: str) -> bool:
 	"""Whether a name is usable as a directory name.
@@ -63,14 +63,14 @@ def _named(name: str) -> Account:
 	# Each account gets its own directory under the configured one, so the
 	# existing data-dir stays where it is and the new ones sit beside the
 	# profile it already holds.
-	user_data_dir = os.path.join(os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_DATA_DIR), name)
+	user_data_dir = os.path.join(os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_ROOT_DATA_DIR), name)
 
 	# The name passed the character check, but that only constrains the
 	# characters, not where they end up pointing. Confirm against the resolved
 	# path, which is the thing Edge is actually handed. realpath rather than
 	# abspath, so a link or a junction under the profile directory is followed
 	# to where it really goes instead of being taken at face value.
-	root = os.path.realpath(os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_DATA_DIR))
+	root = os.path.realpath(os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_ROOT_DATA_DIR))
 	resolved = os.path.realpath(user_data_dir)
 
 	if os.path.commonpath([root, resolved]) != root or resolved == root:
@@ -84,6 +84,15 @@ def _named(name: str) -> Account:
 		profile_name=PROFILE_NAME,
 	)
 
+def get_default_account() -> Account:
+	"""The account used when REWARDS_ACCOUNTS is unset or empty."""
+
+	return Account(
+		name="default",
+		user_data_dir=os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_ROOT_DATA_DIR),
+		profile_name=PROFILE_NAME,
+	)
+
 def configured() -> list[Account]:
 	"""Accounts for this run, in order.
 
@@ -93,13 +102,13 @@ def configured() -> list[Account]:
 	raw = os.environ.get(ACCOUNTS_ENV_VAR, "").strip()
 
 	if not raw:
-		return [Account(name="default", user_data_dir=os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_DATA_DIR), profile_name=PROFILE_NAME)]
+		return [get_default_account()]
 
 	names = [part.strip() for part in raw.split(",")]
 	names = [name for name in names if name]
 
 	if not names:
-		return [Account(name="default", user_data_dir=os.environ.get(DATA_DIR_ENV_VAR, DEFAULT_DATA_DIR), profile_name=PROFILE_NAME)]
+		return [get_default_account()]
 
 	seen: set[str] = set()
 	accounts: list[Account] = []
