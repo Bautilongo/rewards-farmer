@@ -117,7 +117,7 @@ def configure_mulit_account(f: TextIO):
 				except Exception: break
 
 
-		f.write(f"REWARDS_ACCOUNTS={','.join(accounts)}\n")
+	f.write(f"REWARDS_ACCOUNTS={','.join(accounts)}\n")
 
 def configure_variables(f: TextIO):
 	search_backend = one_of_with_default("Which search backend would you like to use?", ["trends", "llm"], "trends")
