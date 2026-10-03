@@ -20,7 +20,6 @@ ACCOUNTS_ENV_VAR = "REWARDS_ACCOUNTS"
 DATA_DIR_ENV_VAR = "USER_DATA_DIR"
 
 PROFILE_NAME = "Default"
-PROFILE_NAME = "Default"
 
 # Names become directory names, so keep them to something a filesystem and a
 # command line both handle without quoting. The character set alone is not

@@ -1,6 +1,9 @@
+import os
 from pathlib import Path
+from accounts import Account, directory_name_is_valid
+from browser import start_driver
 import sys
-from typing import TextIO
+from typing import Literal, TextIO
 
 def one_of_with_default(prompt: str, options: list[str], default: str) -> str:
 	while True:
@@ -44,6 +47,78 @@ def nonempty_input(prompt: str) -> str:
 		else:
 			print("Input cannot be empty. Please try again.")
 
+def path_input(prompt: str, default: Path, create: Literal["dir", "file", "none"]="none") -> Path:
+	while True:
+		path = default
+
+		if user_input := input(f"{prompt} [Default: {default}]: ").strip():
+			path = Path(user_input)
+
+		if create == "dir":
+			try:
+				path.mkdir(parents=True, exist_ok=True)
+				return path
+			except OSError as e:
+				print(f"Invalid directory '{path}': {e}")
+				continue
+		elif create == "file":
+			try:
+				path.parent.mkdir(parents=True, exist_ok=True)
+				path.touch(exist_ok=True)
+				return path
+			except OSError as e:
+				print(f"Invalid file '{path}': {e}")
+				continue
+		elif path.exists():
+			return path
+		else:
+			print(f"Path '{path}' does not exist. Please enter a valid path.")
+
+def configure_mulit_account(f: TextIO):
+	root_data_dir = path_input("Enter the root data directory for accounts", Path(__file__).parent.parent / "data-dir", create="dir")
+
+	f.write(f"USER_DATA_DIR={root_data_dir.resolve()}\n")
+
+	number_of_accounts = positive_integer_with_default("Enter the number of accounts to configure", 1)
+
+	accounts = []
+
+	for i in range(1, number_of_accounts + 1):
+		print(f"\nConfiguring account {i}:")
+
+		while 1:
+			data_dir_name = nonempty_input("Enter an account name: ").strip()
+
+			if directory_name_is_valid(data_dir_name): break
+
+			print(f"Invalid account name '{data_dir_name}'. Please use letters, digits, dot, dash or underscore, and do not end in a dot. Do not use spaces.")
+
+		accounts.append(data_dir_name)
+
+		if boolean_with_default("Would you like to sign in to this profile now?", True):
+			print(f"Launching browser for account '{data_dir_name}' for sign-in")
+
+			driver = start_driver(
+				Account(
+					data_dir_name,
+					user_data_dir=root_data_dir / data_dir_name,
+					profile_name="Default",
+				)
+			)
+
+			if not driver:
+				print("Failed to start the browser for sign-in. Please ensure msedgedriver.exe and msedge.exe are correctly set up.")
+				continue
+
+			print("Close the browser window after signing in to the account. The script will wait until the browser is closed before proceeding.")
+
+			while 1:
+				try: driver.title
+				except Exception: break
+
+
+		f.write(f"REWARDS_ACCOUNTS={','.join(accounts)}\n")
+
 def configure_variables(f: TextIO):
 	search_backend = one_of_with_default("Which search backend would you like to use?", ["trends", "llm"], "trends")
 
@@ -77,61 +152,48 @@ def configure_variables(f: TextIO):
 
 		f.write(f"LLM_REQUEST_TIMEOUT={llm_request_timeout_int}\n")
 
-	print()
-
-	number_of_accounts = positive_integer_with_default("Enter the number of accounts to configure", 1)
-
-	if number_of_accounts > 1:
-		accounts = []
-
-		for i in range(1, number_of_accounts + 1):
-			print(f"\nConfiguring account {i}:")
-			if i == 1:
-				profile_dir = nonempty_input("Enter a profile directory name (usually 'Default'): ").strip()
-			else:
-				profile_dir = nonempty_input(f"Enter a profile directory name for account {i}: ").strip()
-
-			accounts.append(profile_dir)
-	else:
-		accounts = ["Default"]
-
-	f.write(f"REWARDS_ACCOUNTS={','.join(accounts)}\n")
-
-	print()
-
 	headless = boolean_with_default("Do you want to run the browser in headless mode?", False)
 
 	f.write(f"HEADLESS={str(headless).lower()}\n")
 
 	print()
 
+	# We need to set up the driver and browser paths before configuring accounts, as the user may want to sign in to each account during configuration.
 	custom_paths = boolean_with_default("Do you want to specify custom paths for msedgedriver.exe and msedge.exe?", False)
 
 	if custom_paths:
-		msedgedriver_path = input("Enter custom path to msedgedriver.exe (default: unset): ").strip()
+		msedgedriver_path = path_input("Enter custom path to msedgedriver.exe", Path("<unset>"))
 
-		if msedgedriver_path:
-			f.write(f"MSEDGEDRIVER_PATH={msedgedriver_path}\n")
+		if msedgedriver_path.name != "<unset>":
+			f.write(f"MSEDGEDRIVER_PATH={msedgedriver_path.resolve()}\n")
+			os.environ["MSEDGEDRIVER_PATH"] = str(msedgedriver_path.resolve()) # set within this process so we can launch the driver for sign-in during account configuration
 
-		edge_binary_path = input("Enter custom path to msedge.exe (default: unset): ").strip()
+		edge_binary_path = path_input("Enter custom path to msedge.exe", Path("<unset>"))
 
-		if edge_binary_path:
-			f.write(f"EDGE_BINARY={edge_binary_path}\n")
+		if edge_binary_path.name != "<unset>":
+			f.write(f"EDGE_BINARY={edge_binary_path.resolve()}\n")
+			os.environ["EDGE_BINARY"] = str(edge_binary_path.resolve()) # set within this process so we can launch the browser for sign-in during account configuration
 
-	setup_logging = boolean_with_default("Do you want to set up logging for the driver and rewards farmer?", False)
+	print()
+
+	configure_mulit_account(f)
+
+	print()
+
+	setup_logging = boolean_with_default("Do you want to set up logging for the driver and Rewards Farmer?", False)
 
 	if setup_logging:
-		driver_log_path = input("Enter path for driver log file (default: unset): ").strip()
+		driver_log_path = path_input("Enter path for driver log file (default: unset)", Path("<unset>"), create="file")
 
-		if driver_log_path:
-			f.write(f"REWARDS_DRIVER_LOG={driver_log_path}\n")
+		if driver_log_path.name != "<unset>":
+			f.write(f"REWARDS_DRIVER_LOG={driver_log_path.resolve()}\n")
 
-		farmer_log_file = input("Enter path for rewards farmer log file (default: unset): ").strip()
+		farmer_log_file = path_input("Enter path for Rewards Farmer log file (default: unset)", Path("<unset>"), create="file")
 
-		if farmer_log_file:
-			f.write(f"REWARDS_FARMER_LOG_FILE={farmer_log_file}\n")
+		if farmer_log_file.name != "<unset>":
+			f.write(f"REWARDS_FARMER_LOG_FILE={farmer_log_file.resolve()}\n")
 
-		farmer_log_level = one_of_with_default("Enter log level for rewards farmer", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], "INFO")
+		farmer_log_level = one_of_with_default("Enter the desired log level for Rewards Farmer", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], "INFO")
 		f.write(f"REWARDS_FARMER_LOG_LEVEL={farmer_log_level}\n")
 
 	print()
@@ -157,12 +219,10 @@ def configure_variables(f: TextIO):
 	print("\nConfiguration finished!\nYou are ready to run rewards-farmer with the new configuration.\n\nYou may edit these settings at any time by modifying the .env file directly.")
 
 def main():
-	path_to_dotenv = Path(__file__).parent / ".env"
+	print("Welcome to the Rewards Farmer Configuration Script!")
+	print("This script will help you set up the necessary configuration for running the program.\n")
 
-	path_input = input(f"Path to .env file: (Default: {path_to_dotenv}): ").strip()
-
-	if path_input:
-		path_to_dotenv = Path(path_input)
+	path_to_dotenv = path_input(f"Path to .env file: ", Path(__file__).parent.parent / ".env", create="file")
 
 	print("WARNING: This script will overwrite any existing configuration in the .env file.")
 
