@@ -154,7 +154,7 @@ def configure_variables(f: TextIO):
 
 	headless = boolean_with_default("Do you want to run the browser in headless mode?", False)
 
-	f.write(f"HEADLESS={str(headless).lower()}\n")
+	f.write(f"REWARDS_HEADLESS={str(headless).lower()}\n")
 
 	print()
 
