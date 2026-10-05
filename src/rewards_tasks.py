@@ -300,7 +300,26 @@ class RewardsTaskUtils:
 		self.wait_for_then_click(self.elements.get_open_visual_search_sidebar)
 		self.progress = "opened the sidebar"
 
-		self.wait_for_then_click(self.elements.get_search_now_link_from_visual_search_sidebar)
+		# Once today's visual search is done the panel has no link left to
+		# wait for. Without this every later run that day waited it out and
+		# reported a task with nothing left to do as failed.
+		done = object()
+
+		def link_or_done():
+			try:
+				return self.elements.get_search_now_link_from_visual_search_sidebar()
+			except NoSuchElementException:
+				if self.elements.visual_search_done_today():
+					return done
+
+				raise
+
+		if self.wait_for_element(link_or_done) is done:
+			logger.info("Visual search is already done for today")
+
+			return
+
+		self.move_to_and_click(self.elements.get_search_now_link_from_visual_search_sidebar)
 
 		self.tab_utils.switch_to_other_tab()
 		self.progress = "opened the visual search page"
